@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type Response struct {
+type WeatherResponse struct {
 	CurrentWeather struct {
 		Temperature   float64 `json:"temperature"`
 		WindSpeed     float64 `json:"windspeed"`
@@ -17,6 +17,20 @@ type Response struct {
 		IsDay         int     `json:"is_day"`
 		Time          string  `json:"time"`
 	} `json:"current_weather"`
+}
+
+type CityResponse struct {
+	Address struct {
+		HouseNumber string `json:"house_number"`
+		Road string `json:"road"`
+		Suburb string `json:"suburb"`
+		CityDistrict string `json:"city_district"`
+		City string `json:"city"`
+		State string `json:"state"`
+		Postcode string `json:"postcode"`
+		Country string `json:"country"`
+		CountryCode string `json:"country_code"`
+	}
 }
 
 var weatherCodeMap = map[int]string{
@@ -105,14 +119,40 @@ func formatDateTime(dateTime time.Time) string {
 	return formattedTime
 }
 
-func main() {
-	url := "https://api.open-meteo.com/v1/forecast?latitude=54.52&longitude=18.53&current_weather=true"
+func getCity(latitude float64, longitude float64) []byte {
+	// Get the city from the coordinates
+	url := fmt.Sprintf("https://geocode.maps.co/reverse?lat=%f&lon=%f", latitude, longitude)
 
+	fmt.Println("Making Get request to:", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Error making Get request:", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		fmt.Println("Error reading WeatherResponse body:", err)
+	}
+
+	return body
+}
+
+func getWeather(latitude float64, longitude float64) []byte {
+	// Get the weather from the coordinates
+	// https://api.open-meteo.com/v1/forecast?latitude=54.52&longitude=18.53&current_weather=true
+
+	host := "https://api.open-meteo.com/v1/forecast?"
+	params := fmt.Sprintf("latitude=%f&longitude=%f&current_weather=true", latitude, longitude)
+
+	url := host + params
+
+	fmt.Println("Making Get request to:", url)
 	resp, err := http.Get(url)
 
 	if err != nil {
 		fmt.Println("Error making Get request:", err)
-		return
 	}
 
 	defer resp.Body.Close()
@@ -120,19 +160,37 @@ func main() {
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
-		return
+		fmt.Println("Error reading WeatherResponse body:", err)
 	}
+	return body
+}
 
-	var jsonBody Response
+func main() {
 
-	err = json.Unmarshal(body, &jsonBody)
+	latitude := 54.52
+	longitude := 18.53
+	
+
+	weatherBody := getWeather(latitude, longitude)
+	cityBody := getCity(latitude, longitude)
+
+	var jsonWeatherBody WeatherResponse
+	var jsonCityBody CityResponse
+
+
+	err := json.Unmarshal(weatherBody, &jsonWeatherBody)
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
 		return
 	}
 
-	dateTime, err := parseDateTime(jsonBody.CurrentWeather.Time)
+	err = json.Unmarshal(cityBody, &jsonCityBody)
+	if err != nil {
+		fmt.Println("Error parsing JSON:", err)
+		return
+	}
+
+	dateTime, err := parseDateTime(jsonWeatherBody.CurrentWeather.Time)
 	if err != nil {
 		fmt.Println("Error parsing date and time:", err)
 		return
@@ -145,12 +203,14 @@ func main() {
 	}
 	formattedTime := formatDateTime(warsawTime)
 
-	temperature := jsonBody.CurrentWeather.Temperature
-	windSpeed := jsonBody.CurrentWeather.WindSpeed
-	weatherCode := jsonBody.CurrentWeather.WeatherCode
-	direction := getWindDirection(int(jsonBody.CurrentWeather.WindDirection))
+	city := jsonCityBody.Address.City
 
-	fmt.Println("Lokalizacja: Gdynia")
+	temperature := jsonWeatherBody.CurrentWeather.Temperature
+	windSpeed := jsonWeatherBody.CurrentWeather.WindSpeed
+	weatherCode := jsonWeatherBody.CurrentWeather.WeatherCode
+	direction := getWindDirection(int(jsonWeatherBody.CurrentWeather.WindDirection))
+
+	fmt.Printf("Lokalizacja: %s \n", city)
 	fmt.Printf("Data pomiaru: %s \n", formattedTime)
 	description, exists := weatherCodeMap[weatherCode]
 	if exists {
