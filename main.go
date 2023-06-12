@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,16 +22,16 @@ type WeatherResponse struct {
 
 type CityResponse struct {
 	Address struct {
-		HouseNumber string `json:"house_number"`
-		Road string `json:"road"`
-		Suburb string `json:"suburb"`
+		HouseNumber  string `json:"house_number"`
+		Road         string `json:"road"`
+		Suburb       string `json:"suburb"`
 		CityDistrict string `json:"city_district"`
-		City string `json:"city"`
-		State string `json:"state"`
-		Postcode string `json:"postcode"`
-		Country string `json:"country"`
-		CountryCode string `json:"country_code"`
-	}
+		City         string `json:"city"`
+		State        string `json:"state"`
+		Postcode     string `json:"postcode"`
+		Country      string `json:"country"`
+		CountryCode  string `json:"country_code"`
+	} `json: "address"`
 }
 
 var weatherCodeMap = map[int]string{
@@ -119,11 +120,10 @@ func formatDateTime(dateTime time.Time) string {
 	return formattedTime
 }
 
-func getCity(latitude float64, longitude float64) []byte {
+func getCity(latitude string, longitude string) []byte {
 	// Get the city from the coordinates
-	url := fmt.Sprintf("https://geocode.maps.co/reverse?lat=%f&lon=%f", latitude, longitude)
+	url := fmt.Sprintf("https://geocode.maps.co/reverse?lat=%s&lon=%s", latitude, longitude)
 
-	fmt.Println("Making Get request to:", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("Error making Get request:", err)
@@ -139,16 +139,15 @@ func getCity(latitude float64, longitude float64) []byte {
 	return body
 }
 
-func getWeather(latitude float64, longitude float64) []byte {
+func getWeather(latitude string, longitude string) []byte {
 	// Get the weather from the coordinates
 	// https://api.open-meteo.com/v1/forecast?latitude=54.52&longitude=18.53&current_weather=true
 
 	host := "https://api.open-meteo.com/v1/forecast?"
-	params := fmt.Sprintf("latitude=%f&longitude=%f&current_weather=true", latitude, longitude)
+	params := fmt.Sprintf("latitude=%s&longitude=%s&current_weather=true", latitude, longitude)
 
 	url := host + params
 
-	fmt.Println("Making Get request to:", url)
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -167,16 +166,23 @@ func getWeather(latitude float64, longitude float64) []byte {
 
 func main() {
 
-	latitude := 54.52
-	longitude := 18.53
-	
+	latitude := flag.String("latitude", "", "Latitude Value")
+	longitude := flag.String("longitude", "", "Longitude Value")
 
-	weatherBody := getWeather(latitude, longitude)
-	cityBody := getCity(latitude, longitude)
+	flag.Parse()
+
+	if *latitude == "" || *longitude == "" {
+		fmt.Println("Please provide latitude and longitude for location you want to check weather")
+		fmt.Println("Example: <binary> --latitude=54.52 --longitude=18.53")
+	}
+
+
+
+	weatherBody := getWeather(*latitude, *longitude)
+	cityBody := getCity(*latitude, *longitude)
 
 	var jsonWeatherBody WeatherResponse
 	var jsonCityBody CityResponse
-
 
 	err := json.Unmarshal(weatherBody, &jsonWeatherBody)
 	if err != nil {
