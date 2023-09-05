@@ -1,16 +1,15 @@
-package main
+package weather
 
 import (
-	"encoding/csv"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
+
+	"database/sql"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // WeatherResponse represents the structure of the weather API response
@@ -24,23 +23,6 @@ type WeatherResponse struct {
 		Time          string  `json:"time"`
 	} `json:"current_weather"`
 }
-
-// CityResponse represents the structure of the city API response
-type CityResponse struct {
-	Address struct {
-		HouseNumber  string `json:"house_number"`
-		Road         string `json:"road"`
-		Suburb       string `json:"suburb"`
-		CityDistrict string `json:"city_district"`
-		City         string `json:"city"`
-		State        string `json:"state"`
-		Postcode     string `json:"postcode"`
-		Country      string `json:"country"`
-		CountryCode  string `json:"country_code"`
-	} `json:"address"`
-}
-
-// WindDirection represents a wind direction range and description
 
 type WindDirection struct {
 	DegreeStart int
@@ -102,53 +84,51 @@ func getWindDirection(degree int) string {
 	return "Unknown"
 }
 
-func getCity(latitude string, longitude string) string {
-	// Get the city from the coordinates
-	url := fmt.Sprintf("https://geocode.maps.co/reverse?lat=%s&lon=%s", latitude, longitude)
+func HandleWeatherData(weatherData WeatherResponse, city string) {
 
-	resp, err := http.Get(url)
-	if err != nil {
-		fmt.Println("Error making Get request:", err)
-	}
-	defer resp.Body.Close()
+	data := WeatherData{
 
-	body, err := io.ReadAll(resp.Body)
-
-	if err != nil {
-		fmt.Println("Error reading WeatherResponse body:", err)
+		FormattedTime: formatDateTime(weatherData.CurrentWeather.Time),
+		City:          city,
+		Temperature:   fmt.Sprintf("%v", weatherData.CurrentWeather.Temperature),
+		WindSpeed:     fmt.Sprintf("%v", weatherData.CurrentWeather.WindSpeed),
+		WeatherCode:   weatherData.CurrentWeather.WeatherCode,
+		Direction:     getWindDirection(int(weatherData.CurrentWeather.WindDirection)),
 	}
 
-	var jsonCityBody CityResponse
-
-	if err := json.Unmarshal(body, &jsonCityBody); err != nil {
-		fmt.Println("Error parsing JSON for city:", err)
-		return err.Error()
+	fmt.Printf("Lokalizacja: %s \n", city)
+	fmt.Printf("Data pomiaru: %s \n", data.FormattedTime)
+	description, exists := weatherCodeMap[weatherData.CurrentWeather.WeatherCode]
+	if exists {
+		data.Description = description
+		fmt.Printf("Aktualna pogoda: %s\n", data.Description)
+	} else {
+		fmt.Printf("Nieznany opis dla kodu pogody: %d\n", weatherData.CurrentWeather.WeatherCode)
 	}
+	fmt.Println("Temperatura:", data.Temperature, "°C")
+	fmt.Println("Wiatr:", data.WindSpeed, "km/h")
+	fmt.Printf("Kierunek wiatru: %s\n", data.Direction)
 
-	return jsonCityBody.Address.City
+	// data := []string{
+	// 	formattedTime,
+	// 	city,
+	// 	description,
+	// 	temperature,
+	// 	windSpeed,
+	// 	direction,
+	// }
+
+	// file.WriteToFile("data.csv", data)
+	WriteToDatabase(data)
+
 }
 
-func writeToFile(fileName string, data []string) {
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	if err := writer.Write(data); err != nil {
-		panic(err)
-	}
-}
-
-func fetchWeather(latitude, longitude string) (WeatherResponse, error) {
+func FetchWeather(latitude, longitude string) (WeatherResponse, error) {
 
 	host := "https://api.open-meteo.com/v1/forecast?"
 	params := fmt.Sprintf("latitude=%s&longitude=%s&current_weather=true", latitude, longitude)
 	url := host + params
-
+	fmt.Println(url)
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("Error making Get request:", err)
@@ -169,39 +149,6 @@ func fetchWeather(latitude, longitude string) (WeatherResponse, error) {
 	return jsonWeatherBody, nil
 }
 
-func handleWeatherData(weatherData WeatherResponse, city string) {
-
-	formattedTime := formatDateTime(weatherData.CurrentWeather.Time)
-	temperature := fmt.Sprintf("%v", weatherData.CurrentWeather.Temperature)
-	windSpeed := fmt.Sprintf("%v", weatherData.CurrentWeather.WindSpeed)
-	weatherCode := weatherData.CurrentWeather.WeatherCode
-	direction := getWindDirection(int(weatherData.CurrentWeather.WindDirection))
-
-	fmt.Printf("Lokalizacja: %s \n", city)
-	fmt.Printf("Data pomiaru: %s \n", formattedTime)
-	description, exists := weatherCodeMap[weatherCode]
-	if exists {
-		fmt.Printf("Aktualna pogoda: %s\n", description)
-	} else {
-		fmt.Printf("Nieznany opis dla kodu pogody: %d\n", weatherCode)
-	}
-	fmt.Println("Temperatura:", temperature)
-	fmt.Println("Wiatr:", windSpeed)
-	fmt.Printf("Kierunek wiatru: %s\n", direction)
-
-	data := []string{
-		formattedTime,
-		city,
-		description,
-		temperature,
-		windSpeed,
-		direction,
-	}
-
-	writeToFile("data.csv", data)
-
-}
-
 func formatDateTime(dateTimeStr string) string {
 	dateTime, err := time.Parse("2006-01-02T15:04", dateTimeStr)
 	if err != nil {
@@ -218,40 +165,33 @@ func formatDateTime(dateTimeStr string) string {
 	warsawTime := dateTime.In(location)
 
 	// Format the time in an easy-readable format
-	return warsawTime.Format("2006-01-02 15:04 MST")
+	return warsawTime.Format("2006-01-02 15:04:00")
 }
 
-func main() {
+func WriteToDatabase(data WeatherData) {
+	// Create the database handle, confirm driver is present
+	db, err := sql.Open("mysql", "foobar:password@tcp(127.0.0.1:3306)/db")
 
-	latitude := flag.String("latitude", "", "Latitude Value")
-	longitude := flag.String("longitude", "", "Longitude Value")
-
-	flag.Parse()
-
-	if *latitude == "" || *longitude == "" {
-		fmt.Println("Please provide latitude and longitude for location you want to check weather")
-		fmt.Println("Example: <binary> --latitude=54.52 --longitude=18.53")
+	// if there is an error opening the connection, handle it
+	if err != nil {
+		panic(err.Error())
 	}
 
-	// Start a goroutine to fetch weather data every hour
-	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
+	// defer the close till after the main function has finished
+	// executing
+	defer db.Close()
 
-		for {
-			weatherData, err := fetchWeather(*latitude, *longitude)
-			if err != nil {
-				fmt.Println("Error fetching weather data:", err)
-			}
-			city := getCity(*latitude, *longitude)
+	// perform a db.Query insert
+	// INSERT INTO weather_data VALUES (1,'Gdynia','2023-09-04 21:00:00','Przeważnie bezchmurne','18.2','4.5','SW');
 
-			handleWeatherData(weatherData, city)
-			<-ticker.C
-		}
-	}()
-	// Wait for a termination signal
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
-	<-signalChannel
-	fmt.Println("Received termination signal. Exiting...")
+	insert, err := db.Query("INSERT INTO weather_data (location, date_time, description, temperature, wind_speed, wind_direction) VALUES (?, ?, ?, ?, ?, ?)",
+		data.City, data.FormattedTime, data.Description, data.Temperature, data.WindSpeed, data.Direction)
+
+	// if there is an error inserting, handle it
+	if err != nil {
+		panic(err.Error())
+	}
+	// be careful deferring Queries if you are using transactions
+	defer insert.Close()
+
 }
