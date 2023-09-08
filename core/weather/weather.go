@@ -109,16 +109,6 @@ func HandleWeatherData(weatherData WeatherResponse, city string) {
 	fmt.Println("Wiatr:", data.WindSpeed, "km/h")
 	fmt.Printf("Kierunek wiatru: %s\n", data.Direction)
 
-	// data := []string{
-	// 	formattedTime,
-	// 	city,
-	// 	description,
-	// 	temperature,
-	// 	windSpeed,
-	// 	direction,
-	// }
-
-	// file.WriteToFile("data.csv", data)
 	WriteToDatabase(data)
 
 }

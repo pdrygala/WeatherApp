@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,9 +11,25 @@ import (
 
 	"pdrygala.com/weather/core/city"
 	"pdrygala.com/weather/core/weather"
+	"pdrygala.com/weather/transport/rest"
 )
 
 func main() {
+	// TODO
+	// Refactor DB table
+	// Add GET with query params by date
+	// Add Get with all data from table
+	// TBD...
+
+	// Create the REST API server
+	apiHandler := rest.NewServer()
+
+	// Start the server in a goroutine
+	go func() {
+		if err := http.ListenAndServe(":8080", apiHandler); err != nil {
+			fmt.Println("HTTP server error:", err)
+		}
+	}()
 
 	latitude := flag.String("latitude", "", "Latitude Value")
 	longitude := flag.String("longitude", "", "Longitude Value")
@@ -45,4 +62,5 @@ func main() {
 	signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChannel
 	fmt.Println("Received termination signal. Exiting...")
+
 }
