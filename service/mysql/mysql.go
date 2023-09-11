@@ -9,16 +9,49 @@ import (
 	"pdrygala.com/weather/core/weather"
 )
 
-func GetLatestRecord() string {
+func ConnectDB(username string, password string, host string, port string, dbName string) (*sql.DB, error) {
+
+	// Create a DSN (Data Source Name)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, host, port, dbName)
 
 	// Create the database handle, confirm driver is present
-	db, err := sql.Open("mysql", "foobar:password@tcp(127.0.0.1:3306)/db")
+	db, err := sql.Open("mysql", dsn)
 
 	// if there is an error opening the connection, handle it
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
+	return db, nil
+}
+
+func CreateTable(db *sql.DB) {
+	createTableQuery := `
+	CREATE TABLE weather_data (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	location VARCHAR(255) NOT NULL,
+	date_time DATETIME NOT NULL,
+	weather_code DECIMAN(5, 2),     
+	description VARCHAR(255),     
+	temperature DECIMAL(5, 2),     
+	wind_speed DECIMAL(5, 2),     
+	wind_direction VARCHAR(10)
+	)`
+
+	_, err := db.Exec(createTableQuery)
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
+func GetLatestRecord() string {
+
+	// Perform connection to database
+	db, err := ConnectDB("foobar", "password", "127.0.0.1", "3306", "db")
+	//If there is an error handle it
+	if err != nil {
+		panic(err.Error())
+	}
 	// defer the close till after the main function has finished
 	// executing
 	defer db.Close()
