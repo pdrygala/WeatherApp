@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"pdrygala.com/weather/core/weather"
@@ -90,6 +91,48 @@ func GetAllRecords() string {
 	defer db.Close()
 
 	query := "SELECT * FROM weather"
+	rows, err := db.Query(query)
+	if err != nil {
+		panic(err.Error())
+	}
+	defer rows.Close()
+
+	var results []weather.WeatherData
+
+	for rows.Next() {
+		var result weather.WeatherData
+		err := rows.Scan(&result.Id, &result.City, &result.FormattedTime, &result.WeatherCode, &result.Description, &result.Temperature, &result.WindSpeed, &result.Direction)
+		if err != nil {
+			panic(err.Error())
+		}
+		results = append(results, result)
+	}
+
+	if err := rows.Err(); err != nil {
+		panic(err.Error())
+	}
+
+	jsonData, err := json.Marshal(results)
+	if err != nil {
+		panic(err.Error())
+	}
+	return (string(jsonData))
+}
+
+func GetResultsByTimeRange(startTime, endTime time.Time) string {
+	// Perform connection to database
+	db, err := ConnectDB("foobar", "password", "127.0.0.1", "3306", "db")
+
+	//If there is an error handle it
+	if err != nil {
+		panic(err.Error())
+	}
+	// defer the close till after the main function has finished
+	// executing
+	defer db.Close()
+
+	query := fmt.Sprintf("SELECT * FROM weather WHERE date_time BETWEEN '%v' AND '%v'", startTime, endTime)
+
 	rows, err := db.Query(query)
 	if err != nil {
 		panic(err.Error())

@@ -12,6 +12,6 @@ func NewServer() http.Handler {
 
 	//Defines Routes
 	r.Get("/latest", api.GetLatestWeather)
-	r.Get("/bulk", api.GetAllData)
+	r.Get("/results", api.GetResults)
 	return r
 }
