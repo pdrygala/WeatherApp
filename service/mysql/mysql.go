@@ -31,7 +31,7 @@ func CreateTable(db *sql.DB) {
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	location VARCHAR(255) NOT NULL,
 	date_time DATETIME NOT NULL,
-	weather_code DECIMAN(5, 2),     
+	weather_code INT,     
 	description VARCHAR(255),     
 	temperature DECIMAL(5, 2),     
 	wind_speed DECIMAL(5, 2),     
@@ -74,5 +74,46 @@ func GetLatestRecord() string {
 		fmt.Println("Error marshaling JSON:", err)
 	}
 	// Print the JSON data as a string
+	return (string(jsonData))
+}
+
+func GetAllRecords() string {
+	// Perform connection to database
+	db, err := ConnectDB("foobar", "password", "127.0.0.1", "3306", "db")
+
+	//If there is an error handle it
+	if err != nil {
+		panic(err.Error())
+	}
+	// defer the close till after the main function has finished
+	// executing
+	defer db.Close()
+
+	query := "SELECT * FROM weather"
+	rows, err := db.Query(query)
+	if err != nil {
+		panic(err.Error())
+	}
+	defer rows.Close()
+
+	var results []weather.WeatherData
+
+	for rows.Next() {
+		var result weather.WeatherData
+		err := rows.Scan(&result.Id, &result.City, &result.FormattedTime, &result.WeatherCode, &result.Description, &result.Temperature, &result.WindSpeed, &result.Direction)
+		if err != nil {
+			panic(err.Error())
+		}
+		results = append(results, result)
+	}
+
+	if err := rows.Err(); err != nil {
+		panic(err.Error())
+	}
+
+	jsonData, err := json.Marshal(results)
+	if err != nil {
+		panic(err.Error())
+	}
 	return (string(jsonData))
 }
