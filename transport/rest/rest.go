@@ -11,6 +11,6 @@ func NewServer() http.Handler {
 	r := chi.NewRouter()
 
 	//Defines Routes
-	r.Get("/", api.GetLatestWeather)
+	r.Get("/latest", api.GetLatestWeather)
 	return r
 }

@@ -16,7 +16,6 @@ import (
 
 func main() {
 	// TODO
-	// Refactor DB table
 	// Add GET with query params by date
 	// Add Get with all data from table
 	// TBD...

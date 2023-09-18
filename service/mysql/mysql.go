@@ -27,7 +27,7 @@ func ConnectDB(username string, password string, host string, port string, dbNam
 
 func CreateTable(db *sql.DB) {
 	createTableQuery := `
-	CREATE TABLE weather_data (
+	CREATE TABLE weather (
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	location VARCHAR(255) NOT NULL,
 	date_time DATETIME NOT NULL,
@@ -48,6 +48,7 @@ func GetLatestRecord() string {
 
 	// Perform connection to database
 	db, err := ConnectDB("foobar", "password", "127.0.0.1", "3306", "db")
+
 	//If there is an error handle it
 	if err != nil {
 		panic(err.Error())
@@ -57,18 +58,10 @@ func GetLatestRecord() string {
 	defer db.Close()
 
 	// Perform the SQL SELECT query
-	query := "SELECT * FROM weather_data ORDER BY id DESC LIMIT 1"
-	var result weather.WeatherDB // Replace with your actual struct type
+	query := "SELECT * FROM weather ORDER BY id DESC LIMIT 1"
+	var result weather.WeatherData
 
-	// ///	FormattedTime string
-	// City          string
-	// WeatherCode   int
-	// Description   string
-	// Temperature   string
-	// WindSpeed     string
-	// Direction     string
-
-	err = db.QueryRow(query).Scan(&result.Id, &result.City, &result.FormattedTime, &result.Description, &result.Temperature, &result.WindSpeed, &result.Direction)
+	err = db.QueryRow(query).Scan(&result.Id, &result.City, &result.FormattedTime, &result.WeatherCode, &result.Description, &result.Temperature, &result.WindSpeed, &result.Direction)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("No records found.")

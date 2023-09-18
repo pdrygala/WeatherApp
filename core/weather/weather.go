@@ -174,8 +174,8 @@ func WriteToDatabase(data WeatherData) {
 	// perform a db.Query insert
 	// INSERT INTO weather_data VALUES (1,'Gdynia','2023-09-04 21:00:00','Przeważnie bezchmurne','18.2','4.5','SW');
 
-	insert, err := db.Query("INSERT INTO weather_data (location, date_time, description, temperature, wind_speed, wind_direction) VALUES (?, ?, ?, ?, ?, ?)",
-		data.City, data.FormattedTime, data.Description, data.Temperature, data.WindSpeed, data.Direction)
+	insert, err := db.Query("INSERT INTO weather (location, date_time, weather_code, description, temperature, wind_speed, wind_direction) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		data.City, data.FormattedTime, data.WeatherCode, data.Description, data.Temperature, data.WindSpeed, data.Direction)
 
 	// if there is an error inserting, handle it
 	if err != nil {
