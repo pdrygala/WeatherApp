@@ -64,24 +64,13 @@ func CreateTable(db *sql.DB) {
 	}
 }
 
-func GetLatestRecord() string {
-
-	// Perform connection to database
-	db, err := ConnectDB("foobar", "password", "127.0.0.1", "3306", "db")
-
-	//If there is an error handle it
-	if err != nil {
-		panic(err.Error())
-	}
-	// defer the close till after the main function has finished
-	// executing
-	defer db.Close()
+func (m *MySQL) GetLatestRecord() string {
 
 	// Perform the SQL SELECT query
 	query := "SELECT * FROM weather ORDER BY id DESC LIMIT 1"
 	var result weather.WeatherData
 
-	err = db.QueryRow(query).Scan(&result.Id, &result.City, &result.FormattedTime, &result.WeatherCode, &result.Description, &result.Temperature, &result.WindSpeed, &result.Direction)
+	err := m.conn.QueryRow(query).Scan(&result.Id, &result.City, &result.FormattedTime, &result.WeatherCode, &result.Description, &result.Temperature, &result.WindSpeed, &result.Direction)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Println("No records found.")

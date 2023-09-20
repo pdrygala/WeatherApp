@@ -8,7 +8,12 @@ import (
 )
 
 func GetLatestWeather(w http.ResponseWriter, r *http.Request) {
-	response := mysql.GetLatestRecord()
+	dns := "foobar:password@tcp(127.0.0.1:3306)/db"
+	conn, err := mysql.NewMySQL(dns)
+	if err != nil {
+		panic(err.Error())
+	}
+	response := conn.GetLatestRecord()
 	w.Write([]byte(response))
 }
 
