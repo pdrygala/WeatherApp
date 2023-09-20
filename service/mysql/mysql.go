@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,24 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"pdrygala.com/weather/core/weather"
 )
+
+type MySQL struct {
+	conn *sql.DB
+}
+
+func NewMySQL(dsn string) (*MySQL, error) {
+	conn, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("sql open: %s: %w", dsn, err)
+	}
+	return &MySQL{
+		conn: conn,
+	}, nil
+}
+
+func (m *MySQL) Close(ctx context.Context) error {
+	return m.conn.Close()
+}
 
 func ConnectDB(username string, password string, host string, port string, dbName string) (*sql.DB, error) {
 
